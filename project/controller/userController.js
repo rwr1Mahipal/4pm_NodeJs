@@ -48,7 +48,7 @@ exports.login = async (req, res) => {
   if (!comPass) {
     return res.status(401).json({ message: "Email and password are invalid" });
   }
-const token = generateToken(user._id, res);
+  const token = generateToken(user._id, res);
   res.status(201).json({ message: "Login successfully", user, token });
 };
 
@@ -60,6 +60,44 @@ exports.loadUser = async (req, res) => {
       return res.status(401).json({ message: "User not found" });
     }
     res.status(201).json({ message: "User data fetch", user });
+  } catch (error) {
+    console.error("error: ", error);
+  }
+};
+
+exports.updateUser = async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(401).json({ message: "All filed are required" });
+    }
+
+    const id = req.user.id;
+    const updateUser = await User.findByIdAndUpdate(
+      id,
+      { name },
+      { new: true, runValidators: true },
+    );
+    if (!updateUser) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    res.status(201).json({ message: "User is updated", updateUser });
+  } catch (error) {
+    console.error("error: ", error);
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const user = await User.findByIdAndDelete(id);
+    console.log(user);
+
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    res.status(201).json({ message: "User deleted" });
   } catch (error) {
     console.error("error: ", error);
   }
