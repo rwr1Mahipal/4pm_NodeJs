@@ -19,9 +19,14 @@ exports.register = async (req, res) => {
       return res.status(401).json({ message: "User is already register" });
     }
     const hasPass = await bcrypt.hash(password, 10);
+
+    if (!req.file) {
+      return res.status(401).json({ message: "Image required" });
+    }
     const newUser = await User.create({
       name,
       email,
+      avatar: req.file.path,
       password: hasPass,
     });
     const token = generateToken(newUser._id, res);
@@ -98,6 +103,48 @@ exports.deleteUser = async (req, res) => {
       return res.status(401).json({ message: "User not found" });
     }
     res.status(201).json({ message: "User deleted" });
+  } catch (error) {
+    console.error("error: ", error);
+  }
+};
+
+exports.adminLogin = async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(401).json({ message: "All Fileds are requied" });
+  }
+
+  const user = await User.findOne({ email, isAdmin: true }).select("+password");
+  if (!user) {
+    return res.status(401).json({ message: "Admin not found" });
+  }
+
+  const comPass = await bcrypt.compare(password, user.password);
+  if (!comPass) {
+    return res.status(401).json({ message: "Email and password are invalid" });
+  }
+  const token = generateToken(user._id, res);
+  res.status(201).json({ message: "Login successfully", user, token });
+};
+
+exports.adminUpdate = async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(401).json({ message: "All filed are required" });
+    }
+
+    const id = req.user.id;
+    const updateUser = await User.findByIdAndUpdate(
+      id,
+      { name },
+      { new: true, runValidators: true },
+    );
+    if (!updateUser) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    res.status(201).json({ message: "User is updated", updateUser });
   } catch (error) {
     console.error("error: ", error);
   }
