@@ -5,6 +5,8 @@ const {
   loadUser,
   updateUser,
   deleteUser,
+  sendOtp,
+  verifyOTPandPassReset,
 } = require("../controller/userController");
 const { isAuth } = require("../middleware/isAuth");
 const upload = require("../middleware/cloude");
@@ -16,5 +18,7 @@ router.post("/login", login);
 router.get("/me", isAuth, loadUser);
 router.put("/update", isAuth, updateUser);
 router.delete("/delete/:id", isAuth, deleteUser);
+router.post("/send-otp", isAuth, sendOtp);
+router.put("/reset-password", isAuth, verifyOTPandPassReset);
 
 module.exports = router;

@@ -1,6 +1,8 @@
 const User = require("../model/userModel");
 const bcrypt = require("bcryptjs");
 const { generateToken } = require("../utils/generateToken");
+const OTP = require("../model/otpModel");
+const { sendMail } = require("../utils/nodemailer");
 
 exports.register = async (req, res) => {
   try {
@@ -148,4 +150,67 @@ exports.adminUpdate = async (req, res) => {
   } catch (error) {
     console.error("error: ", error);
   }
+};
+
+exports.sendOtp = async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(401).json({ message: "Please enter Email" });
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    return res.status(401).json({ message: "User not found" });
+  }
+
+  const otp = Math.floor(100000 + Math.random() * 999999);
+  await OTP.findOneAndUpdate(
+    { email },
+    { email, otp, expireAt: new Date(Date.now() + 15 * 60 * 1000) },
+    { upsert: true },
+  );
+
+  await sendMail({
+    email,
+    subject: "OTP for password reset",
+    text: ` OTP is ${otp}`,
+  });
+  res.status(201).json({ mesage: "OTP send successfully", otp });
+};
+
+exports.verifyOTPandPassReset = async (req, res) => {
+  const { email, otp, password, confirmPassword } = req.body;
+
+  if (!email || !otp || !password || !confirmPassword) {
+    return res.status(401).json({ message: "All fileds are required" });
+  }
+
+  const otpCheck = await OTP.findOne({ email });
+  if (!otpCheck) {
+    return res.status(401).json({ message: "OTP not found" });
+  }
+
+  if (otpCheck.otp !== otp) {
+    return res.status(401).json({ message: "OTP is wrong or invalid" });
+  }
+
+  if (otpCheck.expireAt < Date.now()) {
+    return res.status(401).json({ message: "OTP is expired" });
+  }
+
+  const user = await User.findOne({ email }).select("-avatar");
+  if (!user) {
+    return res.status(401).json({ message: "User not found" });
+  }
+
+  if (password !== confirmPassword) {
+    return res.status(401).json({ message: "Password dose not match" });
+  }
+
+  const hassPass = await bcrypt.hash(password, 10);
+
+  user.password = hassPass;
+  await user.save();
+  await OTP.deleteOne({ email });
+  res.status(201).json({ message: "Password reset successfully" });
 };
